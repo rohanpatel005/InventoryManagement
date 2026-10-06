@@ -5,10 +5,7 @@ import { Role } from "../entities/user";
 import {Request,Response} from "express"
 const jwt=jsonwebtoken
 
-interface JwtPayload {
-  email: string;
-  role: Role;
-}
+
 
 export enum Permission {
   USER_READ = "user:read",
@@ -53,26 +50,30 @@ export const RolePermissions: Record<Role, Permission[]> = {
     Permission.PRODUCT_READ,
   ],
 };
-export const roleverify = (requiredPermission: Permission)=> {
-  return (req:Request,res:Response,next:NextFunction)=>{
-   const secret = process.env.SECRET;
-    if (!secret) {
-     throw new Error("SECRET is not defined in .env");
-     }
-    const token = req.cookies.token
-    const decoded = jwt.verify(token, secret) as JwtPayload;
+export const roleverify = (requiredPermission: Permission) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const role = req.role;
 
-   
-    if (typeof decoded === "object" && decoded !== null) {
-      const role = decoded.role;
-      const permissions = RolePermissions[role];
-      console.log(permissions)
-      if(permissions.includes(requiredPermission)){
-        next()
-      } 
-      else{
-        return res.status(400).json({message:"Unauthorize to perform the action"})
-      }
+    if (!role) {
+      return res.status(401).json({
+        message: "Authentication required",
+      });
     }
-  }
-}
+
+    const permissions = RolePermissions[role];
+
+    if (!permissions) {
+      return res.status(403).json({
+        message: "Invalid role",
+      });
+    }
+
+    if (permissions.includes(requiredPermission)) {
+      return next();
+    }
+
+    return res.status(403).json({
+      message: "You are not authorized to perform this action",
+    });
+  };
+};

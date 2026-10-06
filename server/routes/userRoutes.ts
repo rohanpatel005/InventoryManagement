@@ -11,14 +11,14 @@ import { isLogggedIn } from '../middleware/isLoggedIn';
 
 const router=express.Router()
 
-router.post("/api/createuser",validateUser,createUser)
-router.post("/api/updateuser/",isLogggedIn,roleverify(Permission.USER_UPDATE),updateUser)
+router.post("/api/user",validateUser,createUser)
+router.put("/api/user/:id",isLogggedIn,roleverify(Permission.USER_UPDATE),updateUser)
 
-router.delete("/api/deleteuser/",isLogggedIn,roleverify(Permission.USER_DELETE),deleteUser)
+router.delete("/api/user/:id",isLogggedIn,roleverify(Permission.USER_DELETE),deleteUser)
 router.post("/api/login",login)
 router.get("/api/logout",logout)
-router.post("/api/placeorder/",isLogggedIn,placeProduct)
-router.get("/api/vieworder/",isLogggedIn,viewOrder)
-router.post("/api/addtocart/",isLogggedIn,addToCart)
-router.get("/api/viewcart/",isLogggedIn,viewCart)
+router.post("/api/order/",isLogggedIn,placeProduct)
+router.get("/api/order/",isLogggedIn,viewOrder)
+router.post("/api/cart/",isLogggedIn,addToCart)
+router.get("/api/cart/",isLogggedIn,viewCart)
 export{router as userRouter}

@@ -19,7 +19,7 @@ export const createUser = async (
   req: Request,
   res: Response
 ) => {
-  try {
+
     const { name, number, email, password, address,role } = req.body;
     const aUser=await Users.findOneBy({email})
     if(aUser){
@@ -44,16 +44,10 @@ export const createUser = async (
 });
     
     });
-  } catch (error) {
-    console.error(error);
 
-    return res.status(500).json({
-      message: "Internal server error",
-    });
-  }
 };
 export const updateUser = async (req: Request, res: Response) => {
-  try {
+
     const { name, number, password, address } = req.body;
 
     const token=req.cookies.token
@@ -86,13 +80,6 @@ const id=req.id
       message: "User updated successfully",
     });
 
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Internal server error",
-    });
-  }
 };
 
 export const deleteUser=async(req:Request,res:Response)=>{ 
@@ -119,10 +106,10 @@ export const logout=async(req:Request,res:Response)=>{
 }
 export const login=async(req:Request,res:Response)=>{
   const {email,password}=req.body
-  try{
+
     const user=await Users.findOneBy({email})
     if(!user){
-       return res.status(400).json({message:"User not register"})
+     return res.status(400).json({message:"User not register"})
     }
     else{
       const upassword=user.password
@@ -145,12 +132,10 @@ export const login=async(req:Request,res:Response)=>{
       })
     }
   }
-  catch(err){
-   console.log(err) 
-  }
-}
+  
+
 export const placeProduct = async (req: Request, res: Response) => {
-  try {
+
     const { items } = req.body;
     const id = req.id;
     const user = await Users.findOneBy({id});
@@ -180,16 +165,10 @@ return res.status(201).json({
  message: "Order placed successfully",
 order,
     });
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Internal server error",
-    });
-  }
+ 
 };
 export const viewOrder=async(req:Request,res:Response)=>{
-   try {
+   
     const userId = req.id;
 
     const orders = await Orders.find({
@@ -209,20 +188,12 @@ export const viewOrder=async(req:Request,res:Response)=>{
       message: "Orders fetched successfully",
       orders,
     });
-
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Internal server error",
-    });
-  }
 }
 export const cancelOrder = async (
   req: Request,
   res: Response
 ) => {
-  try {
+ 
     const uid = req.id;
     const { oid } = req.body;
 
@@ -254,17 +225,9 @@ export const cancelOrder = async (
     return res.status(200).json({
       message: "Order cancelled successfully",
     });
-
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Internal server error",
-    });
-  }
 };
 export const addToCart = async ( req: Request,res: Response) => {
-  try {
+  
     const userId = req.id;
     const productId = Number(req.body.pid);
 
@@ -316,20 +279,12 @@ export const addToCart = async ( req: Request,res: Response) => {
     return res.status(200).json({
       message: "Product added to cart successfully",
     });
-
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Internal error",
-    });
-  }
 };
 export const viewCart = async (
   req: Request,
   res: Response
 ) => {
-  try {
+ 
     const userId = req.id;
 
     const user = await Users.findOne({where: {  id: userId,},relations: {  products: true,},});
@@ -339,11 +294,5 @@ export const viewCart = async (
       });
     }
   return res.status(200).json({cart: user.products, });
- } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Internal error"
-    });
-  }
+ 
 };

@@ -1,3 +1,4 @@
+import { roleverify } from './auth';
 import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload, VerifyErrors } from "jsonwebtoken";
 
@@ -13,7 +14,7 @@ export const isLogggedIn = (
   const token = req.cookies.token;
 
   if (!token) {
-    return res.status(400).json({
+    return res.status(401).json({
       message: "Please login First",
     });
   }
@@ -33,7 +34,7 @@ export const isLogggedIn = (
     (err: VerifyErrors | null, decoded: string | JwtPayload | undefined) => {
 
       if (err) {
-        return res.status(400).json({
+        return res.status(401).json({
           message: "Please login",
         });
       }
@@ -50,7 +51,8 @@ export const isLogggedIn = (
 
       const id=payload.id
       req.id  = id;
-
+      const role=payload.role
+      req.role=role
   
       next();
     }
