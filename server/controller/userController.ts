@@ -1,6 +1,6 @@
 
 import { Users } from './../entities/user';
-import { createProduct } from './productController';
+
 import { Request, Response } from "express";
 
 import bcrypt from "bcrypt"; 
@@ -10,6 +10,7 @@ import { In } from 'typeorm';
 import { Orders } from "../entities/order";
 import { OrderItem } from "../entities/orderItem";
 import { Status } from '../entities/order';
+import { getPagination } from '../utils/pagination';
 
 const apiKey = process.env.API_KEY;
 
@@ -36,7 +37,7 @@ export const createUser = async (
      throw new Error("SECRET is not defined in .env");
      }
     const id=User.id
-    const token = jwt.sign({id,email,role }, secret);
+    const token = jwt.sign({id,email,role }, secret,{expiresIn: "15m"});
     res.cookie("token",token)
     return res.status(201).json({
       message: "User created successfully",
@@ -74,7 +75,7 @@ const id=req.id
       }
     );
 
-    console.log("Updated rows:", result.affected);
+
 
     return res.status(200).json({
       message: "User updated successfully",
@@ -85,7 +86,7 @@ const id=req.id
 export const deleteUser=async(req:Request,res:Response)=>{ 
 
   const id=req.id
-  console.log(typeof(id))
+  
 
   const aUser = await Users.findOneBy({ id });
 
@@ -167,28 +168,50 @@ order,
     });
  
 };
-export const viewOrder=async(req:Request,res:Response)=>{
-   
-    const userId = req.id;
+export const viewOrder = async (
+  req: Request,
+  res: Response
+) => {
+  const userId = req.id;
 
-    const orders = await Orders.find({
-      where: {
-        user: {
-          id: userId,
-        },
-      },
-      relations: {
-        items: {
-          product: true,
-        },
-      },
-    });
+  const { page, limit, skip } = getPagination(
+    req.query.page,
+    req.query.limit
+  );
 
-    return res.status(200).json({
-      message: "Orders fetched successfully",
-      orders,
-    });
-}
+  const [orders, total] = await Orders.findAndCount({
+    where: {
+      user: {
+        id: userId,
+      },
+    },
+
+    relations: {
+      items: {
+        product: true,
+      },
+    },
+
+    skip,
+    take: limit,
+
+    order: {
+      id: "DESC",
+    },
+  });
+
+  return res.status(200).json({
+    data: orders,
+
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
+};
+
 export const cancelOrder = async (
   req: Request,
   res: Response

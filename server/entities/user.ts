@@ -1,5 +1,5 @@
 import {Entity, PrimaryGeneratedColumn ,Column, ManyToMany, JoinColumn, OneToMany, JoinTable, BaseEntity  } from "typeorm"
-import { EntityMetadataValidator } from "typeorm/metadata-builder/EntityMetadataValidator";
+
 import { Orders } from "./order";
 import { Products } from "./product";
 

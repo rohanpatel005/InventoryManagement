@@ -1,4 +1,4 @@
-import { Users } from './../entities/user';
+
 import { NextFunction } from "express";
 import jsonwebtoken from "jsonwebtoken"
 import { Role } from "../entities/user";

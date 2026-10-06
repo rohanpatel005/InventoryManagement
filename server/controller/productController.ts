@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { Users } from "../entities/user";
+
 import { Products } from "../entities/product";
-import { error } from "node:console";
+
 
 export const createProduct=async(req:Request,res:Response)=>{
     const {name,category,quantity,mrp,selling_price,discount,sku} =req.body

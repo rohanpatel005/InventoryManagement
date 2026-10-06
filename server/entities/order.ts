@@ -1,8 +1,8 @@
 import {Entity, PrimaryGeneratedColumn ,Column, ManyToOne,JoinColumn,OneToMany, BaseEntity  } from "typeorm"
-import { EntityMetadataValidator } from "typeorm/metadata-builder/EntityMetadataValidator";
+
 import { Users } from "./user";
 
-import { Products } from "./product";
+
 import { OrderItem } from "./orderItem";
 
 export enum Status {
