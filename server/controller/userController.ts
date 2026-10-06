@@ -54,7 +54,7 @@ export const createUser = async (
 };
 export const updateUser = async (req: Request, res: Response) => {
   try {
-    const { name, number, email, password, address } = req.body;
+    const { name, number, password, address } = req.body;
 
     const token=req.cookies.token
     
@@ -74,7 +74,7 @@ const id=req.id
       {
         name,
         number,
-        email,
+        
         password: hash,
         address,
       }
