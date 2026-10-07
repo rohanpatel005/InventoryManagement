@@ -16,6 +16,15 @@ const app = express();
 app.use(cp())
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
+app.use((req, res) => {
+  res.status(404).json({
+    message: "Route not found",
+  });
+});
+
+app.use(errorHandler);
+
+app.use(errorHandler)
 
 
 const db_host = process.env.DB_HOST
@@ -48,11 +57,10 @@ appDataSource.initialize()
     console.log("Database connected successfully");
 
 
-    app.listen(3000, () => {
-      console.log("Server started on port 3000");
+    app.listen( Number(process.env.PORT), () => {
+      console.log("Server started");
     });
   })
   .catch((error) => {
     console.error("Database connection failed:", error);
   });
-app.use(errorHandler)

@@ -26,7 +26,7 @@ export const createUser = async (
     if(aUser){
         return res.status(400).json({
         message: "User already exits",
-    }).redirect("/");
+    })
     }
    bcrypt.genSalt(10, (err, salt) => {
     bcrypt.hash(password, salt, async (err, hash) => {
@@ -93,7 +93,7 @@ export const deleteUser=async(req:Request,res:Response)=>{
   if (!aUser) {
     return res.status(404).json({
       message: "User not found",
-    }).redirect("/");
+    })
   }
   await Users.delete({id})
   res.cookie("token","")
