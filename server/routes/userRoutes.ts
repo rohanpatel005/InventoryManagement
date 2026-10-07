@@ -18,6 +18,7 @@ router.delete("/api/user/:id",isLogggedIn,roleverify(Permission.USER_DELETE),asy
 router.post("/api/login",asyncHandler(login))
 router.get("/api/logout",asyncHandler(logout))
 router.post("/api/order/",isLogggedIn,asyncHandler(placeProduct))
+router.post("/api/order/:id/cancel",isLogggedIn,asyncHandler(cancelOrder))
 router.get("/api/order/",isLogggedIn,asyncHandler(viewOrder))
 router.post("/api/cart/",isLogggedIn,asyncHandler(addToCart))
 router.get("/api/cart/",isLogggedIn,asyncHandler(viewCart))

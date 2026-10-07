@@ -38,8 +38,8 @@ const appDataSource = new DataSource({
   password: db_password,
   database: db_name,
   entities: [Users, Products, Orders,  OrderItem],
-  synchronize: false,
-  migrations: ["src/migrations/*.ts"],
+  synchronize: true,
+  // migrations: ["src/migrations/*.ts"],
 });
 
 app.use(userRouter);

@@ -1,38 +1,23 @@
 import { Request, Response, NextFunction } from "express";
 import { Products } from "../entities/product";
 import { AppError } from "../utils/appError";
+import { createProductSchema } from "../validations/productValidations";
 
 export const validateProduct = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  console.log(req.body);
+  const { error } = createProductSchema.validate(req.body);
 
-  const {
-    name,
-    category,
-    quantity,
-    mrp,
-    selling_price,
-    discount,
-    sku,
-  } = req.body;
-
-  if (
-    !name ||
-    !category ||
-    !sku ||
-    quantity === undefined ||
-    mrp === undefined ||
-    selling_price === undefined ||
-    discount === undefined
-  ) {
+  if (error) {
     throw new AppError(
-      "All the fields are compulsory",
+      error.details[0].message,
       400
     );
   }
+
+  const { sku } = req.body;
 
   const product = await Products.findOneBy({ sku });
 

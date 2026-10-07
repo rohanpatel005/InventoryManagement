@@ -30,7 +30,7 @@ export const createUser = async (
     }
    bcrypt.genSalt(10, (err, salt) => {
     bcrypt.hash(password, salt, async (err, hash) => {
-    const User=  Users.create({name,number,email,password:hash,address,role})
+    const User=  Users.create({name,number:number,email,password:hash,address,role})
     await User.save()
     const secret = process.env.SECRET;
     if (!secret) {
@@ -133,76 +133,115 @@ export const login=async(req:Request,res:Response)=>{
     }
   }
   
-
-export const placeProduct = async (req: Request, res: Response) => {
+export const placeProduct = async (
+  req: Request,
+  res: Response
+) => {
   const { items } = req.body;
   const userId = req.id;
-if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({
-      message: "Items are required",
-    });
+
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new AppError("Items are required", 400);
   }
-const user = await Users.findOneBy({ id: userId });
-if (!user) {
-   throw new AppError("User not found",404)
+
+  const user = await Users.findOneBy({
+    id: userId,
+  });
+
+  if (!user) {
+    throw new AppError("User not found", 404);
   }
-   for (const item of items) {
+
+  // Validate product ID and quantity
+  for (const item of items) {
     if (
       !Number.isInteger(item.productId) ||
       !Number.isInteger(item.quantity) ||
       item.productId <= 0 ||
       item.quantity <= 0
     ) {
-      return res.status(400).json({
-        message: "Invalid product ID or quantity",
-      });
+      throw new AppError(
+        "Invalid product ID or quantity",
+        400
+      );
     }
   }
 
- const productIds = items.map(
-    (item: { productId: number; quantity: number }) => item.productId
+  const productIds = items.map(
+    (item: { productId: number; quantity: number }) =>
+      item.productId
   );
-const products = await Products.find({
+
+  const products = await Products.find({
     where: {
       id: In(productIds),
     },
   });
 
   if (products.length !== productIds.length) {
-    return res.status(400).json({
-      message: "One or more products not found",
-    });
+    throw new AppError(
+      "One or more products not found",
+      400
+    );
   }
+
+  let totalPrice = 0;
+
   const orderItems = items.map(
     (item: { productId: number; quantity: number }) => {
       const product = products.find(
         (product) => product.id === item.productId
       );
-    if (!product) {
-        throw new AppError(`Produc not found`,404);
-      }
-      if (product.quantity < item.quantity) {
+
+      if (!product) {
         throw new AppError(
-          `Insufficient stock`,400
+          "Product not found",
+          404
         );
       }
-    product.quantity -= item.quantity;
-     return {
+
+      if (product.quantity < item.quantity) {
+        throw new AppError(
+          "Insufficient stock",
+          400
+        );
+      }
+
+      // Calculate price for this item
+      totalPrice +=
+        Number(product.selling_price) * item.quantity;
+
+      // Reduce stock
+      product.quantity -= item.quantity;
+
+      return {
         product,
         quantity: item.quantity,
         price: product.selling_price,
       };
     }
   );
+
+  // Save updated product quantities
   await Products.save(products);
+
+  // Create order
   const order = new Orders();
+
   order.user = user;
   order.items = orderItems as OrderItem[];
   order.status = Status.ACCEPTED;
-  const result=await order.save();
-  if(!result){
-    throw new AppError("Error in Placing the error",500)
+  order.totalPrice = totalPrice;
+
+  const result = await order.save();
+
+  if (!result) {
+    throw new AppError(
+      "Error in placing the order",
+      500
+    );
   }
+
   return res.status(201).json({
     message: "Order placed successfully",
     order,
@@ -257,39 +296,57 @@ export const cancelOrder = async (
   req: Request,
   res: Response
 ) => {
- 
-    const uid = req.id;
-    const { oid } = req.body;
+  const uid = req.id;
+  const  oid  = req.params.id;
 
-    const order = await Orders.findOne({where: {id: Number(oid),},relations: {user: true,},
-    });
+  const order = await Orders.findOne({
+    where: {
+      id: Number(oid),
+    },
+    relations: {
+      user: true,
+      items: {
+        product: true,
+      },
+    },
+  });
 
-    if (!order) {
-      return res.status(404).json({
-        message: "Order not found",
-      });
-    }
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
 
-    if (order.user.id !== uid) {
-      return res.status(403).json({
-        message: "You cannot cancel this order",
-      });
-    }
+  if (order.user.id !== uid) {
+    throw new AppError(
+      "You cannot cancel this order",
+      403
+    );
+  }
 
-    if (order.status === Status.CANCELLED) {
-      return res.status(400).json({
-        message: "Order is already cancelled",
-      });
-    }
+  if (order.status === Status.CANCELLED) {
+    throw new AppError(
+      "Order is already cancelled",
+      400
+    );
+  }
 
-    order.status = Status.CANCELLED;
+  for (const item of order.items) {
+    item.product.quantity += item.quantity;
+  }
 
-    await order.save();
+  
+  await Products.save(
+    order.items.map((item) => item.product)
+  );
 
-    return res.status(200).json({
-      message: "Order cancelled successfully",
-    });
+  order.status = Status.CANCELLED;
+
+  await order.save();
+
+  return res.status(200).json({
+    message: "Order cancelled successfully",
+  });
 };
+
 export const addToCart = async ( req: Request,res: Response) => {
   
     const userId = req.id;

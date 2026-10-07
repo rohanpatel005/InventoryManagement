@@ -10,8 +10,8 @@ export class Users extends BaseEntity{
     id!:Number  
     @Column()
     name!:string;
-    @Column({type:"bigint"})
-    number!:number
+    @Column({type:"varchar",length:10})
+    number!:string
     @Column({unique:true})
     email!:string
     @Column()
