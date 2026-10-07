@@ -9,7 +9,7 @@ import { userRouter } from "./routes/userRoutes";
 import cp from "cookie-parser";
 import dotenv from "dotenv"
 import { productRouter } from "./routes/productRoutes";
-import { errorHandler } from "./middleware/errorhandler";
+import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config()
 
@@ -17,15 +17,10 @@ const app = express();
 app.use(cp())
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
-app.use((req, res) => {
-  res.status(404).json({
-    message: "Route not found",
-  });
-});
 
-app.use(errorHandler);
 
-app.use(errorHandler)
+
+
 
 
 const db_host = process.env.DB_HOST
@@ -52,7 +47,7 @@ app.use(productRouter)
 app.get("/", (req, res) => {
   res.send("Hello from the backend of inventory management system");
 });
-
+app.use(errorHandler)
 appDataSource.initialize()
   .then(() => {
     console.log("Database connected successfully");

@@ -96,7 +96,7 @@ if (result.affected === 0) {
   throw new AppError("User not found", 404);
 }
   res.clearCookie("token")
-  return res.status(200).json({message:"User Deleted Successfully"})
+  return res.status(200).json({message:"User Deleted Successfully"}).redirect("/")
 
 }
 
@@ -257,54 +257,39 @@ export const cancelOrder = async (
   req: Request,
   res: Response
 ) => {
-  const uid = req.id;
-  const { oid } = req.body;
+ 
+    const uid = req.id;
+    const { oid } = req.body;
 
-  const order = await Orders.findOne({
-    where: {
-      id: Number(oid),
-    },
-    relations: {
-      user: true,
-      items: {
-        product: true,
-      },
-    },
-  });
+    const order = await Orders.findOne({where: {id: Number(oid),},relations: {user: true,},
+    });
 
-  if (!order) {
-    throw new AppError("Order not found", 404);
-  }
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found",
+      });
+    }
 
-  if (order.user.id !== uid) {
-    throw new AppError(
-      "You cannot cancel this order",
-      403
-    );
-  }
+    if (order.user.id !== uid) {
+      return res.status(403).json({
+        message: "You cannot cancel this order",
+      });
+    }
 
-  if (order.status === Status.CANCELLED) {
-    throw new AppError(
-      "Order is already cancelled",
-      400
-    );
-  }
+    if (order.status === Status.CANCELLED) {
+      return res.status(400).json({
+        message: "Order is already cancelled",
+      });
+    }
 
-  for (const item of order.items) {
-    item.product.quantity += item.quantity;
+    order.status = Status.CANCELLED;
 
-    await item.product.save();
-  }
+    await order.save();
 
-  order.status = Status.CANCELLED;
-
-  await order.save();
-
-  return res.status(200).json({
-    message: "Order cancelled successfully",
-  });
+    return res.status(200).json({
+      message: "Order cancelled successfully",
+    });
 };
-
 export const addToCart = async ( req: Request,res: Response) => {
   
     const userId = req.id;
