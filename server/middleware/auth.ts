@@ -5,8 +5,7 @@ import { Role } from "../entities/user";
 import {Request,Response} from "express"
 const jwt=jsonwebtoken
 
-
-
+import { AppError } from "../utils/appError";
 export enum Permission {
   USER_READ = "user:read",
   USER_CREATE = "user:create",
@@ -55,25 +54,26 @@ export const roleverify = (requiredPermission: Permission) => {
     const role = req.role;
 
     if (!role) {
-      return res.status(401).json({
-        message: "Authentication required",
-      });
+      if (!role) {
+  throw new AppError("Authentication required", 401);
+}
+
     }
 
     const permissions = RolePermissions[role];
+    if (!permissions.includes(requiredPermission)) {
+  throw new AppError(
+    "You are not authorized to perform this action",
+    403
+  );
+}
 
-    if (!permissions) {
-      return res.status(403).json({
-        message: "Invalid role",
-      });
-    }
 
     if (permissions.includes(requiredPermission)) {
       return next();
     }
 
-    return res.status(403).json({
-      message: "You are not authorized to perform this action",
-    });
+
+
   };
 };

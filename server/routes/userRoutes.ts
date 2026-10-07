@@ -8,17 +8,17 @@ import { createUser ,deleteUser,login,logout,updateUser} from "../controller/use
 import { validateUser } from "../middleware/checkCredentials";
 import { roleverify } from "../middleware/auth";
 import { isLogggedIn } from '../middleware/isLoggedIn';
-
+import { asyncHandler } from "../middleware/asyncHandler";
 const router=express.Router()
 
 router.post("/api/user",validateUser,createUser)
-router.put("/api/user/:id",isLogggedIn,roleverify(Permission.USER_UPDATE),updateUser)
+router.put("/api/user/:id",isLogggedIn,roleverify(Permission.USER_UPDATE),asyncHandler(updateUser))
 
-router.delete("/api/user/:id",isLogggedIn,roleverify(Permission.USER_DELETE),deleteUser)
-router.post("/api/login",login)
-router.get("/api/logout",logout)
-router.post("/api/order/",isLogggedIn,placeProduct)
-router.get("/api/order/",isLogggedIn,viewOrder)
-router.post("/api/cart/",isLogggedIn,addToCart)
-router.get("/api/cart/",isLogggedIn,viewCart)
+router.delete("/api/user/:id",isLogggedIn,roleverify(Permission.USER_DELETE),asyncHandler(deleteUser))
+router.post("/api/login",asyncHandler(login))
+router.get("/api/logout",asyncHandler(logout))
+router.post("/api/order/",isLogggedIn,asyncHandler(placeProduct))
+router.get("/api/order/",isLogggedIn,asyncHandler(viewOrder))
+router.post("/api/cart/",isLogggedIn,asyncHandler(addToCart))
+router.get("/api/cart/",isLogggedIn,asyncHandler(viewCart))
 export{router as userRouter}

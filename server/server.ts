@@ -10,6 +10,7 @@ import cp from "cookie-parser";
 import dotenv from "dotenv"
 import { productRouter } from "./routes/productRoutes";
 import { errorHandler } from "./middleware/errorhandler";
+
 dotenv.config()
 
 const app = express();

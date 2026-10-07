@@ -11,7 +11,7 @@ import { Orders } from "../entities/order";
 import { OrderItem } from "../entities/orderItem";
 import { Status } from '../entities/order';
 import { getPagination } from '../utils/pagination';
-
+import { AppError } from "../utils/appError";
 const apiKey = process.env.API_KEY;
 
 const jwt=jsonwebtoken
@@ -56,10 +56,8 @@ export const updateUser = async (req: Request, res: Response) => {
 const id=req.id
     const user = await Users.findOneBy({ id });
 
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
+    if(!user){
+      throw new AppError("user not found",404)
     }
 
     const hash = await bcrypt.hash(password, 10);
@@ -74,7 +72,9 @@ const id=req.id
         address,
       }
     );
-
+      if(result.affected==0){
+      throw new AppError("Update failed",400)
+    }
 
 
     return res.status(200).json({
@@ -88,16 +88,15 @@ export const deleteUser=async(req:Request,res:Response)=>{
   const id=req.id
   
 
-  const aUser = await Users.findOneBy({ id });
+ const result = await Users.delete({ id });
 
-  if (!aUser) {
-    return res.status(404).json({
-      message: "User not found",
-    })
-  }
-  await Users.delete({id})
-  res.cookie("token","")
-  return res.status(200).json({message:"User Deleted Successfully"}).redirect("/")
+
+
+if (result.affected === 0) {
+  throw new AppError("User not found", 404);
+}
+  res.clearCookie("token")
+  return res.status(200).json({message:"User Deleted Successfully"})
 
 }
 
@@ -110,7 +109,7 @@ export const login=async(req:Request,res:Response)=>{
 
     const user=await Users.findOneBy({email})
     if(!user){
-     return res.status(400).json({message:"User not register"})
+      throw new AppError("user not registered",404)
     }
     else{
       const upassword=user.password
@@ -120,7 +119,7 @@ export const login=async(req:Request,res:Response)=>{
         if(result){
           const secret = process.env.SECRET;
         if (!secret) {
-          throw new Error("SECRET is not defined in .env");
+          throw new AppError("SECRET is not defined in .env",500);
         }
           const id=user.id
           const token = jwt.sign({id,email,role}, secret);
@@ -136,38 +135,80 @@ export const login=async(req:Request,res:Response)=>{
   
 
 export const placeProduct = async (req: Request, res: Response) => {
-
-    const { items } = req.body;
-    const id = req.id;
-    const user = await Users.findOneBy({id});
-    if (!user) {
-    return res.status(404).json({message: "User not found"});
+  const { items } = req.body;
+  const userId = req.id;
+if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({
+      message: "Items are required",
+    });
   }
-    const productIds = items.map((item: { productId: number; quantity: number }) => item.productId);
-    const products = await Products.find({where: {id: In(productIds) },
-    });
-  if (products.length !== productIds.length) {return res.status(400).json({message: "One or more products not found"});
+const user = await Users.findOneBy({ id: userId });
+if (!user) {
+   throw new AppError("User not found",404)
+  }
+   for (const item of items) {
+    if (
+      !Number.isInteger(item.productId) ||
+      !Number.isInteger(item.quantity) ||
+      item.productId <= 0 ||
+      item.quantity <= 0
+    ) {
+      return res.status(400).json({
+        message: "Invalid product ID or quantity",
+      });
     }
-const orderItems = items.map((item: { productId: number; quantity: number }) => {const product = products.find((product) => product.id === item.productId
-        );
-return {
-          product: product!,
-          quantity: item.quantity,
-          price: product!.selling_price,
-        };
-      }
-    );
-const order = new Orders();
- order.user = user; 
- order.items = orderItems as OrderItem[];
- order.status = Status.ACCEPTED;
-await order.save();
-return res.status(201).json({
- message: "Order placed successfully",
-order,
+  }
+
+ const productIds = items.map(
+    (item: { productId: number; quantity: number }) => item.productId
+  );
+const products = await Products.find({
+    where: {
+      id: In(productIds),
+    },
+  });
+
+  if (products.length !== productIds.length) {
+    return res.status(400).json({
+      message: "One or more products not found",
     });
- 
+  }
+  const orderItems = items.map(
+    (item: { productId: number; quantity: number }) => {
+      const product = products.find(
+        (product) => product.id === item.productId
+      );
+    if (!product) {
+        throw new AppError(`Produc not found`,404);
+      }
+      if (product.quantity < item.quantity) {
+        throw new AppError(
+          `Insufficient stock`,400
+        );
+      }
+    product.quantity -= item.quantity;
+     return {
+        product,
+        quantity: item.quantity,
+        price: product.selling_price,
+      };
+    }
+  );
+  await Products.save(products);
+  const order = new Orders();
+  order.user = user;
+  order.items = orderItems as OrderItem[];
+  order.status = Status.ACCEPTED;
+  const result=await order.save();
+  if(!result){
+    throw new AppError("Error in Placing the error",500)
+  }
+  return res.status(201).json({
+    message: "Order placed successfully",
+    order,
+  });
 };
+
 export const viewOrder = async (
   req: Request,
   res: Response
@@ -216,39 +257,54 @@ export const cancelOrder = async (
   req: Request,
   res: Response
 ) => {
- 
-    const uid = req.id;
-    const { oid } = req.body;
+  const uid = req.id;
+  const { oid } = req.body;
 
-    const order = await Orders.findOne({where: {id: Number(oid),},relations: {user: true,},
-    });
+  const order = await Orders.findOne({
+    where: {
+      id: Number(oid),
+    },
+    relations: {
+      user: true,
+      items: {
+        product: true,
+      },
+    },
+  });
 
-    if (!order) {
-      return res.status(404).json({
-        message: "Order not found",
-      });
-    }
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
 
-    if (order.user.id !== uid) {
-      return res.status(403).json({
-        message: "You cannot cancel this order",
-      });
-    }
+  if (order.user.id !== uid) {
+    throw new AppError(
+      "You cannot cancel this order",
+      403
+    );
+  }
 
-    if (order.status === Status.CANCELLED) {
-      return res.status(400).json({
-        message: "Order is already cancelled",
-      });
-    }
+  if (order.status === Status.CANCELLED) {
+    throw new AppError(
+      "Order is already cancelled",
+      400
+    );
+  }
 
-    order.status = Status.CANCELLED;
+  for (const item of order.items) {
+    item.product.quantity += item.quantity;
 
-    await order.save();
+    await item.product.save();
+  }
 
-    return res.status(200).json({
-      message: "Order cancelled successfully",
-    });
+  order.status = Status.CANCELLED;
+
+  await order.save();
+
+  return res.status(200).json({
+    message: "Order cancelled successfully",
+  });
 };
+
 export const addToCart = async ( req: Request,res: Response) => {
   
     const userId = req.id;
@@ -270,9 +326,7 @@ export const addToCart = async ( req: Request,res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
+      throw new AppError("User not found",404)
     }
 
     const product = await Products.findOneBy({
@@ -280,9 +334,7 @@ export const addToCart = async ( req: Request,res: Response) => {
     });
 
     if (!product) {
-      return res.status(404).json({
-        message: "Product not found",
-      });
+     throw new AppError("Product not found",404)
     }
 
     const alreadyInCart = user.products.some(
@@ -312,9 +364,7 @@ export const viewCart = async (
 
     const user = await Users.findOne({where: {  id: userId,},relations: {  products: true,},});
     if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
+      throw new AppError("User not found",404)
     }
   return res.status(200).json({cart: user.products, });
  

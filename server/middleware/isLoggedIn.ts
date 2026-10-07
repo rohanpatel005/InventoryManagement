@@ -1,9 +1,12 @@
-import { roleverify } from './auth';
 import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload, VerifyErrors } from "jsonwebtoken";
+import { AppError } from "../utils/appError";
+import { Role } from "../entities/user";
+
 
 interface MyJwtPayload extends JwtPayload {
   id: number;
+  role: Role;
 }
 
 export const isLogggedIn = (
@@ -14,46 +17,47 @@ export const isLogggedIn = (
   const token = req.cookies.token;
 
   if (!token) {
-    return res.status(401).json({
-      message: "Please login First",
-    });
+    throw new AppError(
+      "Please login first",
+      401
+    );
   }
-
 
   const secret = process.env.SECRET;
 
   if (!secret) {
-    return res.status(500).json({
-      message: "SECRET is not defined in .env",
-    });
+    throw new AppError(
+      "SECRET is not defined in .env",
+      500
+    );
   }
 
   jwt.verify(
     token,
     secret,
-    (err: VerifyErrors | null, decoded: string | JwtPayload | undefined) => {
-
+    (
+      err: VerifyErrors | null,
+      decoded: string | JwtPayload | undefined
+    ) => {
       if (err) {
-        return res.status(401).json({
-          message: "Please login",
-        });
+        throw new AppError(
+          "Please login",
+          401
+        );
       }
-
 
       if (!decoded || typeof decoded === "string") {
-        return res.status(400).json({
-          message: "Invalid token",
-        });
+        throw new AppError(
+          "Invalid token",
+          400
+        );
       }
-
 
       const payload = decoded as MyJwtPayload;
 
-      const id=payload.id
-      req.id  = id;
-      const role=payload.role
-      req.role=role
-  
+      req.id = payload.id;
+      req.role = payload.role;
+
       next();
     }
   );
