@@ -98,3 +98,7 @@ export const deleteProduct = async (
     message: "Product deleted successfully",
   });
 };
+export const viewProduct=async(req:Request,res:Response)=>{
+  const products=await Products.find()
+  res.status(200).json({"products":products})
+}
