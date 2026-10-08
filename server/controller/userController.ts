@@ -12,8 +12,7 @@ import { OrderItem } from "../entities/orderItem";
 import { Status } from '../entities/order';
 import { getPagination } from '../utils/pagination';
 import { AppError } from "../utils/appError";
-const apiKey = process.env.API_KEY;
-
+import { AppDataSource } from "../server";
 const jwt=jsonwebtoken
 
 export const createUser = async (
@@ -144,15 +143,6 @@ export const placeProduct = async (
     throw new AppError("Items are required", 400);
   }
 
-  const user = await Users.findOneBy({
-    id: userId,
-  });
-
-  if (!user) {
-    throw new AppError("User not found", 404);
-  }
-
-  // Validate product ID and quantity
   for (const item of items) {
     if (
       !Number.isInteger(item.productId) ||
@@ -167,87 +157,111 @@ export const placeProduct = async (
     }
   }
 
-  const productIds = items.map(
-    (item: { productId: number; quantity: number }) =>
-      item.productId
-  );
+  const result = await AppDataSource.transaction(
+    async (manager) => {
 
-  const products = await Products.find({
-    where: {
-      id: In(productIds),
-    },
-  });
 
-  if (products.length !== productIds.length) {
-    throw new AppError(
-      "One or more products not found",
-      400
-    );
-  }
+      const user = await manager.findOne(Users, {
+        where: {
+          id: userId,
+        },
+      });
 
-  let totalPrice = 0;
-
-  const orderItems = items.map(
-    (item: { productId: number; quantity: number }) => {
-      const product = products.find(
-        (product) => product.id === item.productId
-      );
-
-      if (!product) {
-        throw new AppError(
-          "Product not found",
-          404
-        );
+      if (!user) {
+        throw new AppError("User not found", 404);
       }
 
-      if (product.quantity < item.quantity) {
+   
+      const productIds = items.map(
+        (item: { productId: number; quantity: number }) =>
+          item.productId
+      );
+
+      const products = await manager.find(Products, {
+        where: {
+          id: In(productIds),
+        },
+      });
+
+      if (products.length !== productIds.length) {
         throw new AppError(
-          "Insufficient stock",
+          "One or more products not found",
           400
         );
       }
 
-      // Calculate price for this item
-      totalPrice +=
-        Number(product.selling_price) * item.quantity;
+      let totalPrice = 0;
 
-      // Reduce stock
-      product.quantity -= item.quantity;
+      const orderItems = items.map(
+        (item: {
+          productId: number;
+          quantity: number;
+        }) => {
 
-      return {
-        product,
-        quantity: item.quantity,
-        price: product.selling_price,
-      };
+          const product = products.find(
+            (product) => product.id === item.productId
+          );
+
+          if (!product) {
+            throw new AppError(
+              "Product not found",
+              404
+            );
+          }
+
+          if (product.quantity < item.quantity) {
+            throw new AppError(
+              "Insufficient stock",
+              400
+            );
+          }
+
+          totalPrice +=
+            Number(product.selling_price) *
+            item.quantity;
+
+          product.quantity -= item.quantity;
+
+          return {
+            product,
+            quantity: item.quantity,
+            price: product.selling_price,
+          };
+        }
+      );
+
+    
+      await manager.save(Products, products);
+
+      const order = manager.create(Orders, {
+        user,
+        items: orderItems as OrderItem[],
+        status: Status.ACCEPTED,
+        totalPrice,
+      });
+
+      
+      const savedOrder = await manager.save(
+        Orders,
+        order
+      );
+
+      if (!savedOrder) {
+        throw new AppError(
+          "Error in placing the order",
+          500
+        );
+      }
+
+      return savedOrder;
     }
   );
 
-  // Save updated product quantities
-  await Products.save(products);
-
-  // Create order
-  const order = new Orders();
-
-  order.user = user;
-  order.items = orderItems as OrderItem[];
-  order.status = Status.ACCEPTED;
-  order.totalPrice = totalPrice;
-
-  const result = await order.save();
-
-  if (!result) {
-    throw new AppError(
-      "Error in placing the order",
-      500
-    );
-  }
-
   return res.status(201).json({
     message: "Order placed successfully",
-    order,
+    order: result,
   });
 };
-
 export const viewOrder = async (
   req: Request,
   res: Response

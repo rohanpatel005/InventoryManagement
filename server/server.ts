@@ -30,7 +30,7 @@ const db_user = process.env.DB_USER
 const db_password = process.env.DB_PASSWORD
 
 
-const appDataSource = new DataSource({
+export const AppDataSource = new DataSource({
   type: "postgres",
   host: db_host,
   port: Number(db_port),
@@ -48,7 +48,7 @@ app.get("/", (req, res) => {
   res.send("Hello from the backend of inventory management system");
 });
 app.use(errorHandler)
-appDataSource.initialize()
+AppDataSource.initialize()
   .then(() => {
     console.log("Database connected successfully");
 
