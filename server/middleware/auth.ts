@@ -16,7 +16,7 @@ export enum Permission {
   ORDER_CREATE = "order:create",
   ORDER_UPDATE = "order:update",
   ORDER_DELETE = "order:delete",
-
+  ADMIN_CREATE="create:manager",
   PRODUCT_READ = "product:read",
   PRODUCT_CREATE = "product:create",
   PRODUCT_UPDATE = "product:update",

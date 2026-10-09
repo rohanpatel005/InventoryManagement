@@ -31,32 +31,36 @@ const db_password = process.env.DB_PASSWORD
 
 
 export const AppDataSource = new DataSource({
-  type: "postgres",
-  host: db_host,
-  port: Number(db_port),
-  username: db_user,
-  password: db_password,
-  database: db_name,
-  entities: [Users, Products, Orders,  OrderItem],
-  synchronize: true,
-  // migrations: ["src/migrations/*.ts"],
+    type: "postgres",
+    host: db_host,
+    port: Number(db_port),
+    username: db_user,
+    password: db_password,
+    database: db_name,
+    entities: [Users, Products, Orders, OrderItem],
+    synchronize: true,
 });
 
 app.use(userRouter);
-app.use(productRouter)
+app.use(productRouter);
+
 app.get("/", (req, res) => {
-  res.send("Hello from the backend of inventory management system");
+    res.send("Hello from the backend of inventory management system");
 });
-app.use(errorHandler)
-AppDataSource.initialize()
-  .then(() => {
-    console.log("Database connected successfully");
 
+app.use(errorHandler);
 
-    app.listen( Number(process.env.PORT), () => {
-      console.log("Server started");
-    });
-  })
-  .catch((error) => {
-    console.error("Database connection failed:", error);
-  });
+if (require.main === module) {
+    AppDataSource.initialize()
+        .then(() => {
+            console.log("Database connected successfully");
+
+            app.listen(Number(process.env.PORT) || 3000, () => {
+                console.log("Server started");
+            });
+        })
+        .catch((error) => {
+            console.error("Database connection failed:", error);
+            process.exitCode = 1;
+        });
+}

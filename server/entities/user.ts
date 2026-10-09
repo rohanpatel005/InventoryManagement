@@ -18,7 +18,7 @@ export class Users extends BaseEntity{
     password!:string
     @Column()
     address!:string
-    @Column({type:"enum",enum:Role})
+    @Column({type:"enum",enum:Role,default:Role.USER})
     role!:Role
      
     @OneToMany(() => Orders, (orders) => orders.user)

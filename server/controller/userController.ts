@@ -20,30 +20,41 @@ export const createUser = async (
   res: Response
 ) => {
 
-    const { name, number, email, password, address,role } = req.body;
+    const { name, number, email, password, address} = req.body;
     const aUser=await Users.findOneBy({email})
     if(aUser){
         return res.status(400).json({
         message: "User already exits",
     })
     }
-   bcrypt.genSalt(10, (err, salt) => {
-    bcrypt.hash(password, salt, async (err, hash) => {
-    const User=  Users.create({name,number:number,email,password:hash,address,role})
-    await User.save()
-    const secret = process.env.SECRET;
-    if (!secret) {
-     throw new Error("SECRET is not defined in .env");
-     }
-    const id=User.id
-    const token = jwt.sign({id,email,role }, secret,{expiresIn: "15m"});
-    res.cookie("token",token)
-    return res.status(201).json({
-      message: "User created successfully",
-    });
+   const secret = process.env.SECRET;
+
+if (!secret) {
+    throw new Error("SECRET is not defined in .env");
+}
+
+const salt = await bcrypt.genSalt(10);
+const hash = await bcrypt.hash(password, salt);
+
+const user = await Users.create({
+    name,
+    number,
+    email,
+    password: hash,
+    address,
+   
 });
-    
-    });
+
+const token = jwt.sign(
+    { id: user.id, email, role:"user" },
+    secret,
+    { expiresIn: "15m" }
+);
+
+res.cookie("token", token);
+return res.status(201).json({
+    message: "User created successfully",
+});
 
 };
 export const updateUser = async (req: Request, res: Response) => {
@@ -159,23 +170,24 @@ export const placeProduct = async (
 
   const result = await AppDataSource.transaction(
     async (manager) => {
-
-
       const user = await manager.findOne(Users, {
-        where: {
-          id: userId,
-        },
+        where: { id: userId },
       });
 
       if (!user) {
         throw new AppError("User not found", 404);
       }
 
-   
-      const productIds = items.map(
-        (item: { productId: number; quantity: number }) =>
-          item.productId
-      );
+      const productIds = [
+        ...new Set(
+          items.map(
+            (item: {
+              productId: number;
+              quantity: number;
+            }) => item.productId
+          )
+        ),
+      ];
 
       const products = await manager.find(Products, {
         where: {
@@ -190,57 +202,66 @@ export const placeProduct = async (
         );
       }
 
-      let totalPrice = 0;
-
-      const orderItems = items.map(
-        (item: {
-          productId: number;
-          quantity: number;
-        }) => {
-
-          const product = products.find(
-            (product) => product.id === item.productId
-          );
-
-          if (!product) {
-            throw new AppError(
-              "Product not found",
-              404
-            );
-          }
-
-          if (product.quantity < item.quantity) {
-            throw new AppError(
-              "Insufficient stock",
-              400
-            );
-          }
-
-          totalPrice +=
-            Number(product.selling_price) *
-            item.quantity;
-
-          product.quantity -= item.quantity;
-
-          return {
-            product,
-            quantity: item.quantity,
-            price: product.selling_price,
-          };
-        }
+      const productMap = new Map(
+        products.map((product) => [
+          product.id,
+          product,
+        ])
       );
 
-    
-      await manager.save(Products, products);
+      let totalPrice = 0;
+      const orderItems: OrderItem[] = [];
+
+      for (const item of items) {
+        const product = productMap.get(item.productId);
+
+        if (!product) {
+          throw new AppError(
+            "Product not found",
+            404
+          );
+        }
+
+        const updateResult = await manager
+          .createQueryBuilder()
+          .update(Products)
+          .set({
+            quantity: () =>
+              `"quantity" - :quantity`,
+          })
+          .where("id = :productId", {
+            productId: item.productId,
+          })
+          .andWhere("quantity >= :quantity")
+          .setParameter("quantity", item.quantity)
+          .execute();
+
+        if (updateResult.affected !== 1) {
+          throw new AppError(
+            "Insufficient stock",
+            400
+          );
+        }
+
+        totalPrice +=
+          Number(product.selling_price) *
+          item.quantity;
+        const orderItem = manager.create(OrderItem, {
+            product,
+            quantity: item.quantity,
+            price: Number(product.selling_price),
+          });
+
+          orderItems.push(orderItem);
+      }
 
       const order = manager.create(Orders, {
         user,
-        items: orderItems as OrderItem[],
+        items: orderItems,
         status: Status.ACCEPTED,
         totalPrice,
       });
 
-      
       const savedOrder = await manager.save(
         Orders,
         order

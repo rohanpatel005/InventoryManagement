@@ -54,11 +54,4 @@ export const createUserSchema = Joi.object({
         "Address cannot exceed 255 characters",
     }),
 
-  role: Joi.string()
-    .valid(...Object.values(Role))
-    .required()
-    .messages({
-      "any.only": "Invalid role",
-      "any.required": "Role is required",
-    }),
-});
+  })

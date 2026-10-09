@@ -4,6 +4,7 @@
   "description": "",
   "main": "server.ts",
   "scripts": {
+    "seed:admin": "ts-node --files seeds/seedAdmin.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "npx ts-node --files server.ts"
   },
