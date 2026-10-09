@@ -29,7 +29,10 @@ export class Orders extends BaseEntity {
   })
   status!: Status;
 
-  @ManyToOne(() => Users, (user) => user.orders)
+  @ManyToOne(() => Users, (user) => user.orders,{
+     onDelete: "SET NULL",
+  nullable: true,
+  })
   @JoinColumn({ name: "user_id" })
   user!: Users;
 
